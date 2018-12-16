@@ -2,6 +2,7 @@ const _ = require('lodash');
 
 const express = require('express');
 const bodyParser = require('body-parser');
+const bcrypt = require('bcryptjs');
 
 var {mongoose} = require('./db/mongoose');
 var {Todo} = require('./models/todo');
@@ -115,6 +116,32 @@ app.post('/users', (req, res) => {
 
 app.get('/users/me', authenticate,  (req, res) => {
 	res.send(req.user);
+});
+
+app.post('/users/login', (req, res) => {
+	var login = _.pick(req.body, ['email', 'password']);
+
+	// User.findOne({email: login.email}).then((user) =>{
+	// 	if(user){
+	// 		bcrypt.compare(login.password, user.password, (err, result) => {
+	// 			if(result){
+	// 				res.status(200).send(user);
+	// 			}
+	// 			else{
+	// 				res.status(401).send({message: "Invalid user or password"});
+	// 			}
+	// 		});
+	// 	} else{
+	// 		res.status(404).send({message: "User not found"});
+	// 	}
+	// });
+	User.findByCredential(login).then((user) =>{
+		return user.generateAuthToken().then((token) => {
+			res.header('x-auth', token).status(200).send(user);
+		});
+	}).catch((e) => {
+		res.status(404).send({message:"Invalid user or password"});
+	});
 });
 
 app.listen(3000, () => {
