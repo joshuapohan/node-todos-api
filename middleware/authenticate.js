@@ -13,7 +13,7 @@ var authenticate = (req, res, next) => {
 	}).catch((e) => {
 		return res.status(401).send();
 	});
-}
+};
 
 module.exports = {
 	authenticate

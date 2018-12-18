@@ -14,9 +14,10 @@ var app = express();
 
 app.use(bodyParser.json());
 
-app.post('/todos', (req, res) => {
+app.post('/todos', authenticate, (req, res) => {
 	var todo = new Todo({
-		text: req.body.text
+		text: req.body.text,
+		_creator: req.user._id
 	});
 
 	todo.save().then((result) => {
@@ -26,8 +27,8 @@ app.post('/todos', (req, res) => {
 	});
 });
 
-app.get('/todos', (req, res) => {
-	Todo.find().then((todos) => {
+app.get('/todos', authenticate, (req, res) => {
+	Todo.find({_creator: req.user._id}).then((todos) => {
 		res.send({
 			todos,
 			code: 'OK'
@@ -37,7 +38,7 @@ app.get('/todos', (req, res) => {
 	});
 });
 
-app.get('/todos/:id', (req, res) => {
+app.get('/todos/:id', authenticate, (req, res) => {
 	var id = req.params.id;
 
 	//validate id using is valid
@@ -45,24 +46,41 @@ app.get('/todos/:id', (req, res) => {
 		return res.status(404).send({});
 	}
 
-	Todo.findById(id).then((todo) => {
+	Todo.findOne({_id: id, _creator: req.user._id}).then((todo) => {
 		if(!todo){
 			return res.status(404).send('Todo not found');
 		}
-		res.status(200).send({todo});
+		if(todo._creator.toHexString() === req.user._id.toHexString()){
+			res.status(200).send({todo});			
+		}else{
+			res.status(401).send({message: 'Unauthorized access'})
+		}
 	}).catch((err) => {
 		res.status(400).send();
 	});
 
+	// Todo.findById(id).then((todo) => {
+	// 	if(!todo){
+	// 		return res.status(404).send('Todo not found');
+	// 	}
+	// 	if(todo._creator.toHexString() === req.user._id.toHexString()){
+	// 		res.status(200).send({todo});			
+	// 	}else{
+	// 		res.status(401).send({message: 'Unauthorized access'})
+	// 	}
+	// }).catch((err) => {
+	// 	res.status(400).send();
+	// });
 });
 
-app.delete('/todos/:id', (req,res) => {
+app.delete('/todos/:id', authenticate, (req,res) => {
 	var id = req.params.id;
 
 	if(!ObjectID.isValid(id)){
 		return res.status(404).send({});
 	}
-	Todo.findByIdAndRemove(id).then((todo) => {
+
+	Todo.findOneAndRemove({_id: id, _creator: req.user._id}).then((todo) => {
 		if(!todo){
 			return res.status(404).send('Todo not found');
 		}
@@ -70,9 +88,18 @@ app.delete('/todos/:id', (req,res) => {
 	}).catch((err) => {
 		res.status(400).send();
 	});
+
+	// Todo.findByIdAndRemove(id).then((todo) => {
+	// 	if(!todo){
+	// 		return res.status(404).send('Todo not found');
+	// 	}
+	// 	res.status(200).send({ todo, message: 'Todo removed'});
+	// }).catch((err) => {
+	// 	res.status(400).send();
+	// });
 });
 
-app.patch('/todos/:id', (req, res) => {
+app.patch('/todos/:id', authenticate, (req, res) => {
 	var id = req.params.id;
 	var body = _.pick(req.body, ['text', 'completed']);
 
@@ -90,7 +117,7 @@ app.patch('/todos/:id', (req, res) => {
 		body.completedAt = null;
 	}
 
-	Todo.findByIdAndUpdate(id, {$set: body}, {new: true}).then((todo) => {
+	Todo.findOneAndUpdate({_id: id, _creator: req.user._id}, {$set: body}, {new: true}).then((todo) => {
 		if(todo){
 			res.status(200).send({todo});
 		}
@@ -100,6 +127,17 @@ app.patch('/todos/:id', (req, res) => {
 	}).catch((e) => {
 		res.status(400).send();
 	});
+
+	// Todo.findByIdAndUpdate(id, {$set: body}, {new: true}).then((todo) => {
+	// 	if(todo){
+	// 		res.status(200).send({todo});
+	// 	}
+	// 	else{
+	// 		res.status(404).send();
+	// 	}
+	// }).catch((e) => {
+	// 	res.status(400).send();
+	// });
 });
 
 app.post('/users', (req, res) => {
@@ -140,7 +178,15 @@ app.post('/users/login', (req, res) => {
 			res.header('x-auth', token).status(200).send(user);
 		});
 	}).catch((e) => {
-		res.status(404).send({message:"Invalid user or password"});
+		res.status(400).send({message:"Invalid user or password"});
+	});
+});
+
+app.delete('/users/me/token', authenticate, (req, res) => {
+	req.user.removeToken(req.token).then(() => {
+		res.status(200).send();
+	}).catch((e) => {
+		res.status(400).send({message:"Token not deleted"});
 	});
 });
 
