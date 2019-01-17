@@ -1,0 +1,12 @@
+{
+	"test": {
+		"PORT": 3000,
+		"MONGODB_URI": "mongodb://127.0.0.1:27017/test",
+		"JWT_SECRET": "ascuj123nt419jfw"
+	},
+	"development": {
+		"PORT": 3000,
+		"MONGODB_URI": "mongodb://127.0.0.1:27017/test",
+		"JWT_SECRET": "1209fj0233j09j2j"
+	}
+}
